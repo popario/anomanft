@@ -1,1 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" x-data="appData()" :class="darkMode ? 'dark' : ''">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANOMA NFT Cross-Chain Swap</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs" defer></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="bg-[#0d1b2a] dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
 
+  <!-- HEADER -->
+  <header class="text-center py-8">
+    <h1 class="text-3xl font-bold text-[#00b894]">ANOMA NFT Cross-Chain Swap</h1>
+    <p class="text-gray-400">Propose, confirm, and track your cross-chain swaps.</p>
+    <button 
+      @click="darkMode = !darkMode" 
+      class="mt-3 px-4 py-2 rounded-lg bg-[#00b894] hover:bg-[#019870] text-white flex items-center gap-1 mx-auto transition">
+      <span class="material-icons">dark_mode</span> Toggle Dark Mode
+    </button>
+  </header>
+
+  <!-- MAIN FORM -->
+  <main class="max-w-3xl mx-auto px-4 space-y-8">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+      <!-- NFT Details -->
+      <div class="mb-4">
+        <label class="block text-sm font-semibold mb-1">NFT Details</label>
+        <input x-model="form.nftDetails" type="text" placeholder="e.g. Bored Ape #123"
+          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00b894] dark:bg-gray-700 dark:border-gray-600"/>
+      </div>
+
+      <!-- NFT Identifier -->
+      <div class="mb-4">
+        <label class="block text-sm font-semibold mb-1">NFT Identifier</label>
+        <input x-model="form.nftId" type="text" placeholder="e.g. Token ID"
+          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00b894] dark:bg-gray-700 dark:border-gray-600"/>
+      </div>
+
+      <!-- CHAINS -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Current Chain</label>
+          <select x-model="form.fromChain"
+            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00b894] dark:bg-gray-700 dark:border-gray-600">
+            <option value="">Select Chain</option>
+            <option value="Ethereum">Ethereum</option>
+            <option value="Polygon">Polygon</option>
+            <option value="Solana">Solana</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Target Chain</label>
+          <select x-model="form.toChain"
+            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00b894] dark:bg-gray-700 dark:border-gray-600">
+            <option value="">Select Chain</option>
+            <option value="Ethereum">Ethereum</option>
+            <option value="Polygon">Polygon</option>
+            <option value="Solana">Solana</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="mb-6">
+        <label class="block text-sm font-semibold mb-1">Desired NFT / Notes</label>
+        <textarea x-model="form.notes" rows="3" placeholder="What do you want in return?"
+          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#00b894] dark:bg-gray-700 dark:border-gray-600"></textarea>
+      </div>
+
+      <!-- Submit -->
+      <button 
+        @click="openConfirm()" 
+        class="w-full py-3 bg-[#00b894] hover:bg-[#019870] text-white font-semibold rounded-lg transition">
+        Create Intent
+      </button>
+    </div>
+
+    <!-- TRANSACTION HISTORY -->
+    <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span class="material-icons text-[#00b894]">history</span> Transaction History
+      </h2>
+
+      <!-- Search + Filter -->
+      <div class="flex gap-3 mb-4">
+        <input x-model="search" type="text" placeholder="Search by NFT or chain..."
+          class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"/>
+        <select x-model="filterChain"
+          class="px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+          <option value="">All Chains</option>
+          <option value="Ethereum">Ethereum</option>
+          <option value="Polygon">Polygon</option>
+          <option value="Solana">Solana</option>
+        </select>
+      </div>
+
+      <!-- History List -->
+      <template x-for="tx in filteredHistory()" :key="tx.id">
+        <div @click="openTxDetails(tx)" 
+          class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-2 cursor-pointer hover:scale-[1.02] transform transition">
+          <div class="flex items-center gap-3">
+            <img :src="chains[tx.fromChain]" alt="" class="h-6 w-6">
+            <span class="text-sm font-semibold" x-text="tx.nftDetails"></span>
+          </div>
+          <div class="flex items-center gap-3">
+            <img :src="chains[tx.toChain]" alt="" class="h-6 w-6">
+            <template x-if="tx.status === 'Pending'">
+              <span class="loader h-5 w-5 border-2 border-t-transparent border-[#00b894] rounded-full animate-spin"></span>
+            </template>
+            <span class="text-xs" :class="tx.status === 'Completed' ? 'text-green-500' : 'text-yellow-500'" x-text="tx.status"></span>
+          </div>
+        </div>
+      </template>
+    </section>
+  </main>
+
+  <!-- CONFIRM MODAL -->
+  <div x-show="showConfirm" class="modal-overlay">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold mb-4">Confirm Transaction</h3>
+      <p class="text-sm mb-4">Do you want to proceed with this swap?</p>
+      <div class="flex justify-end gap-3">
+        <button @click="showConfirm = false" class="btn-gray">Cancel</button>
+        <button @click="confirmTransaction()" class="btn-green">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TX REPORT MODAL -->
+  <div x-show="showReport" class="modal-overlay">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold mb-4">Transaction Successful</h3>
+      <p class="text-sm mb-4">Your swap intent has been recorded.</p>
+      <button @click="showReport = false" class="btn-green w-full">Close</button>
+    </div>
+  </div>
+
+  <!-- TX DETAILS MODAL -->
+  <div x-show="showTxDetails" class="modal-overlay">
+    <div class="modal-box">
+      <h3 class="text-lg font-bold mb-4">Transaction Details</h3>
+      <p><strong>NFT:</strong> <span x-text="selectedTx.nftDetails"></span></p>
+      <p><strong>ID:</strong> <span x-text="selectedTx.nftId"></span></p>
+      <p><strong>From:</strong> <span x-text="selectedTx.fromChain"></span></p>
+      <p><strong>To:</strong> <span x-text="selectedTx.toChain"></span></p>
+      <p><strong>Status:</strong> <span x-text="selectedTx.status"></span></p>
+      <p><strong>Notes:</strong> <span x-text="selectedTx.notes"></span></p>
+      <div class="flex gap-3 mt-4">
+        <button @click="shareReceipt()" class="btn-gray flex-1 flex items-center justify-center gap-1">
+          <span class="material-icons">share</span> Share
+        </button>
+        <button @click="showTxDetails = false" class="btn-green flex-1">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function appData() {
+      return {
+        darkMode: false,
+        form: { nftDetails: '', nftId: '', fromChain: '', toChain: '', notes: '' },
+        history: [],
+        search: '',
+        filterChain: '',
+        showConfirm: false,
+        showReport: false,
+        showTxDetails: false,
+        selectedTx: {},
+        chains: {
+          Ethereum: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=029",
+          Polygon: "https://cryptologos.cc/logos/polygon-matic-logo.png?v=029",
+          Solana: "https://cryptologos.cc/logos/solana-sol-logo.png?v=029"
+        },
+        openConfirm() { this.showConfirm = true; },
+        confirmTransaction() {
+          this.showConfirm = false;
+          this.showReport = true;
+          let tx = {
+            id: Date.now(),
+            ...this.form,
+            status: "Pending"
+          };
+          this.history.push(tx);
+          this.form = { nftDetails: '', nftId: '', fromChain: '', toChain: '', notes: '' };
+
+          // Auto complete after 3s
+          setTimeout(() => {
+            tx.status = "Completed";
+          }, 3000);
+        },
+        openTxDetails(tx) {
+          this.selectedTx = tx;
+          this.showTxDetails = true;
+        },
+        filteredHistory() {
+          return this.history.filter(tx =>
+            (!this.filterChain || tx.fromChain === this.filterChain || tx.toChain === this.filterChain) &&
+            (tx.nftDetails.toLowerCase().includes(this.search.toLowerCase()) ||
+             tx.fromChain.toLowerCase().includes(this.search.toLowerCase()) ||
+             tx.toChain.toLowerCase().includes(this.search.toLowerCase()))
+          );
+        },
+        shareReceipt() {
+          let receipt = `Transaction Receipt:\nNFT: ${this.selectedTx.nftDetails}\nID: ${this.selectedTx.nftId}\nFrom: ${this.selectedTx.fromChain}\nTo: ${this.selectedTx.toChain}\nStatus: ${this.selectedTx.status}\nNotes: ${this.selectedTx.notes}`;
+          navigator.clipboard.writeText(receipt).then(() => {
+            alert("Transaction receipt copied to clipboard!");
+          });
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Loader */
+    .loader { border-top-color: transparent; }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); z-index: 50; }
+    .modal-box { background: white; color: black; padding: 1.5rem; border-radius: 0.75rem; max-width: 24rem; width: 100%; animation: zoomIn 0.3s ease; }
+    .dark .modal-box { background: #1f2937; color: white; }
+    @keyframes zoomIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    /* Buttons */
+    .btn-green { background: #00b894; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: 0.2s; }
+    .btn-green:hover { background: #019870; }
+    .btn-gray { background: #ccc; color: #333; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: 0.2s; }
+    .dark .btn-gray { background: #374151; color: white; }
+  </style>
+</body>
+</html>
